@@ -1,0 +1,6 @@
+llama-cpp-python
+python-dotenv 
+fastapi 
+uvicorn
+openai-whisper 
+torch
