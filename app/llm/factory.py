@@ -1,7 +1,7 @@
 def get_llm(provider: str):
     provider = provider.lower()
 
-    if provider == "phi3:mini":
+    if provider == "llama":
         from app.llm.llama_client import LlamaClient
         return LlamaClient()
 
