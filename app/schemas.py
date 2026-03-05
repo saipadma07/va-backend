@@ -2,7 +2,7 @@ from pydantic import BaseModel
 
 class ChatRequest(BaseModel):
     message: str
-    provider: str = "phi3:mini"  
+    provider: str = "tinyllama"  
 
 
 class ChatResponse(BaseModel):

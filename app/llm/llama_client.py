@@ -8,7 +8,7 @@ class LlamaClient:
         self.url = "http://localhost:11434/api/generate"
 
         # Your model
-        self.model = "phi3:mini"
+        self.model = "tinyllama"
 
         self.system_prompt ="""
 You are Sia, a friendly voice assistant.
