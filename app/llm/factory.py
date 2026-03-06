@@ -1,3 +1,6 @@
+from app.llm.llama_client import LlamaClient
+
+
 def get_llm(provider: str):
     provider = provider.lower()
 
@@ -5,7 +8,6 @@ def get_llm(provider: str):
         return LlamaClient()
 
     elif provider == "llama":
-        from app.llm.llama_client import LlamaClient
         return LlamaClient()
 
     elif provider == "openai":
