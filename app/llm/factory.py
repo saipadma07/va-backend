@@ -1,7 +1,10 @@
 def get_llm(provider: str):
     provider = provider.lower()
 
-    if provider == "llama":
+    if provider == "ollama":
+        return LlamaClient()
+
+    elif provider == "llama":
         from app.llm.llama_client import LlamaClient
         return LlamaClient()
 
