@@ -4,68 +4,87 @@ import requests
 class LlamaClient:
 
     def __init__(self):
+        """
+        Runs once when the backend starts.
+        We initialize the model configuration and HTTP session here.
+        """
 
+        # Ollama API endpoint
         self.url = "http://localhost:11434/api/generate"
 
-        # Your model
+        # Model name
         self.model = "phi3:mini"
 
-        self.system_prompt ="""
-You are Sia, a friendly voice assistant talking to a user in real time.
+        # Persistent HTTP connection (faster requests)
+        self.session = requests.Session()
 
-Rules:
-- Keep responses short (1–3 sentences).
+        # System prompt controlling assistant behavior
+        self.system_prompt = """
+You are Sia, a friendly real-time voice assistant talking to a user.
+
+Guidelines:
+- Normally reply in 1–2 sentences.
+- If the question requires explanation, give a helpful answer (3–5 sentences max).
 - Speak naturally like a human friend.
-- Be clear and helpful.
-- If you don't know something, say you are not sure.
-- Do not invent facts.
-- Avoid long explanations unless the user asks.
-- Answer quickly and directly.
+- Be clear, accurate, and helpful.
+- If you are unsure, say you are not sure.
+- Never invent facts.
 
-Tone:
-Warm, calm, friendly, and conversational.
+Conversation style:
+- Friendly and conversational
+- Direct and easy to understand
+- Avoid unnecessary long explanations
 
-Example behavior:
+Examples:
+
 User: Hi
-You: Hi! Nice to hear from you. How can I help today?
+Sia: Hi! Nice to hear from you. How can I help today?
 
 User: What is Python?
-You: Python is a programming language used to build software, websites, and AI systems.
+Sia: Python is a popular programming language used to build software, websites, and AI systems. It’s known for being easy to learn and very versatile.
+
+User: Explain neural networks
+Sia: Neural networks are computer models inspired by the human brain. They process information through layers of connected nodes called neurons. Each layer learns patterns in data, allowing systems to recognize things like images, speech, or text.
 """
 
-    def generate(self, user_prompt: str) -> str:
 
-        # Safety check
-        if not user_prompt or len(user_prompt.strip()) < 3:
+    def generate(self, user_prompt: str) -> str:
+        """
+        Sends a prompt to Ollama and returns the generated response.
+        """
+
+        # Basic safety check
+        if not user_prompt or len(user_prompt.strip()) < 2:
             return "Sorry, I didn’t quite catch that. Could you say it again?"
 
-        prompt = f"""{self.system_prompt}
-
-User: {user_prompt}
-Sia:"""
+        # Construct final prompt
+        prompt = f"{self.system_prompt}\nUser: {user_prompt}\nAssistant:"
 
         payload = {
             "model": self.model,
             "prompt": prompt,
             "stream": False,
-
-            # Faster + stable settings
             "options": {
+
+                # Limits response length (faster)
                 "num_predict": 80,
-                "temperature": 0.4,
+
+                # Lower randomness = fewer hallucinations
+                "temperature": 0.35,
+
                 "top_p": 0.9,
-                "num_ctx": 2048
+
+                # Context window (kept small for speed)
+                "num_ctx": 1024
             }
         }
 
         try:
 
-            response = requests.post(
+            response = self.session.post(
                 self.url,
                 json=payload,
-
-                # ✅ VERY IMPORTANT FIX
-                timeout=600
+                timeout=60
             )
 
             response.raise_for_status()

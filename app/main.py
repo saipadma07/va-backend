@@ -35,7 +35,7 @@ app.add_middleware(
 )
 
 # Load LLM ONCE (good)
-llm = get_llm("llama")
+llm = get_llm("ollama")
 
 
 class ChatRequest(BaseModel):
