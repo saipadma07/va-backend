@@ -6,13 +6,13 @@ class LlamaClient:
     def __init__(self):
         """
         Runs once when the backend starts.
-        We initialize the model configuration and HTTP session here.
+        Initializes model configuration and HTTP session.
         """
 
         # Ollama API endpoint
         self.url = "http://localhost:11434/api/generate"
 
-        # Model name
+        # Model name (change here if needed)
         self.model = "phi3:mini"
 
         # Persistent HTTP connection (faster requests)
@@ -34,23 +34,31 @@ Conversation style:
 - Friendly and conversational
 - Direct and easy to understand
 - Avoid unnecessary long explanations
-
-Examples:
-
-User: Hi
-Sia: Hi! Nice to hear from you. How can I help today?
-
-User: What is Python?
-Sia: Python is a popular programming language used to build software, websites, and AI systems. It’s known for being easy to learn and very versatile.
-
-User: Explain neural networks
-Sia: Neural networks are computer models inspired by the human brain. They process information through layers of connected nodes called neurons. Each layer learns patterns in data, allowing systems to recognize things like images, speech, or text.
 """
+
+        # 🔥 Warm up the model once when server starts
+        try:
+            print("🔥 Warming up LLM model...")
+
+            self.session.post(
+                self.url,
+                json={
+                    "model": self.model,
+                    "prompt": "Hello",
+                    "stream": False
+                },
+                timeout=120
+            )
+
+            print("✅ LLM warmup complete")
+
+        except Exception as e:
+            print("⚠️ LLM warmup failed:", e)
 
 
     def generate(self, user_prompt: str) -> str:
         """
-        Sends a prompt to Ollama and returns the generated response.
+        Sends prompt to Ollama and returns response.
         """
 
         # Basic safety check
@@ -66,15 +74,15 @@ Sia: Neural networks are computer models inspired by the human brain. They proce
             "stream": False,
             "options": {
 
-                # Limits response length (faster)
+                # limit response length
                 "num_predict": 80,
 
-                # Lower randomness = fewer hallucinations
+                # reduce hallucinations
                 "temperature": 0.35,
 
                 "top_p": 0.9,
 
-                # Context window (kept small for speed)
+                # context window
                 "num_ctx": 1024
             }
         }
@@ -84,7 +92,7 @@ Sia: Neural networks are computer models inspired by the human brain. They proce
             response = self.session.post(
                 self.url,
                 json=payload,
-                timeout=60
+                timeout=180   # 🔥 increased timeout
             )
 
             response.raise_for_status()
@@ -94,15 +102,19 @@ Sia: Neural networks are computer models inspired by the human brain. They proce
             answer = data.get("response", "").strip()
 
             if not answer:
-                return "I'm here. Could you say that again?"
+                return "I'm here. Could you repeat that?"
+
+            print("🧠 LLM RESPONSE:", answer)
 
             return answer
 
 
         except requests.exceptions.Timeout:
             print("⚠️ Ollama timeout")
-            return "I'm thinking a bit slowly. Could you try again?"
+
+            return "Sorry, I'm thinking a bit slowly. Could you try again?"
 
         except Exception as e:
             print("⚠️ LLM error:", e)
-            return "Sorry, I'm having a little trouble right now."
+
+            return "Sorry, I'm having trouble answering right now."
