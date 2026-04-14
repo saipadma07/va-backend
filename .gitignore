@@ -1,6 +1,8 @@
+venv/
 .venv/
 __pycache__/
 *.pyc
 temp/
-static/audio/
+app/static/audio/
 .env
+.vscode/

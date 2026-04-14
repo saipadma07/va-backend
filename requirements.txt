@@ -1,6 +1,18 @@
-llama-cpp-python
-python-dotenv 
-fastapi 
+fastapi
 uvicorn
-openai-whisper 
+python-multipart
+requests
+pydantic
+python-dotenv
+
+# AI / LLM
+groq
+
+# Vision
+opencv-python
+Pillow
+
+# Speech
+edge-tts
+openai-whisper
 torch

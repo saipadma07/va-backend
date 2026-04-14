@@ -5,40 +5,28 @@ class LlamaClient:
 
     def __init__(self):
         """
-        Runs once when the backend starts.
-        Initializes model configuration and HTTP session.
+        Local Ollama LLM client (fallback mode).
         """
 
-        # Ollama API endpoint
         self.url = "http://localhost:11434/api/generate"
 
-        # Model name (change here if needed)
         self.model = "phi3:mini"
 
-        # Persistent HTTP connection (faster requests)
         self.session = requests.Session()
 
-        # System prompt controlling assistant behavior
         self.system_prompt = """
-You are Sia, a friendly real-time voice assistant talking to a user.
+You are Sia, a friendly real-time voice assistant.
 
 Guidelines:
-- Normally reply in 1–2 sentences.
-- If the question requires explanation, give a helpful answer (3–5 sentences max).
-- Speak naturally like a human friend.
-- Be clear, accurate, and helpful.
-- If you are unsure, say you are not sure.
-- Never invent facts.
-
-Conversation style:
-- Friendly and conversational
-- Direct and easy to understand
-- Avoid unnecessary long explanations
+- Reply in 1–2 sentences normally
+- If needed, explain clearly (max 3–5 sentences)
+- Be natural and conversational
+- Be accurate, do not hallucinate
+- If unsure, say you don’t know
 """
 
-        # 🔥 Warm up the model once when server starts
         try:
-            print("🔥 Warming up LLM model...")
+            print("🔥 Warming up Ollama model...")
 
             self.session.post(
                 self.url,
@@ -47,74 +35,59 @@ Conversation style:
                     "prompt": "Hello",
                     "stream": False
                 },
-                timeout=120
+                timeout=60
             )
 
-            print("✅ LLM warmup complete")
+            print("✅ Ollama warmup complete")
 
         except Exception as e:
-            print("⚠️ LLM warmup failed:", e)
-
+            print("⚠️ Ollama warmup failed:", e)
 
     def generate(self, user_prompt: str) -> str:
         """
-        Sends prompt to Ollama and returns response.
+        Generate response using Ollama.
         """
 
-        # Basic safety check
         if not user_prompt or len(user_prompt.strip()) < 2:
-            return "Sorry, I didn’t quite catch that. Could you say it again?"
+            return "Sorry, I didn’t catch that. Could you repeat?"
 
-        # Construct final prompt
-        prompt = f"{self.system_prompt}\nUser: {user_prompt}\nAssistant:"
+        prompt = f"{self.system_prompt}\n\nUser: {user_prompt}\nAssistant:"
 
         payload = {
             "model": self.model,
             "prompt": prompt,
             "stream": False,
             "options": {
-
-                # limit response length
                 "num_predict": 80,
-
-                # reduce hallucinations
-                "temperature": 0.35,
-
+                "temperature": 0.4,
                 "top_p": 0.9,
-
-                # context window
                 "num_ctx": 1024
             }
         }
 
         try:
-
             response = self.session.post(
                 self.url,
                 json=payload,
-                timeout=180   # 🔥 increased timeout
+                timeout=120
             )
 
             response.raise_for_status()
 
             data = response.json()
-
             answer = data.get("response", "").strip()
 
             if not answer:
                 return "I'm here. Could you repeat that?"
 
-            print("🧠 LLM RESPONSE:", answer)
+            print("🧠 Ollama RESPONSE:", answer)
 
             return answer
 
-
         except requests.exceptions.Timeout:
             print("⚠️ Ollama timeout")
-
-            return "Sorry, I'm thinking a bit slowly. Could you try again?"
+            return "Sorry, I'm taking too long. Try again."
 
         except Exception as e:
-            print("⚠️ LLM error:", e)
-
-            return "Sorry, I'm having trouble answering right now."
+            print("⚠️ Ollama error:", e)
+            return "Sorry, something went wrong."

@@ -5,29 +5,35 @@ from pydantic import BaseModel
 from pathlib import Path
 import uuid
 import os
-import requests
 import base64
 
+from dotenv import load_dotenv
+from groq import Groq
+
+import cv2
+import numpy as np
+
 from app.llm.factory import get_llm
+from app.llm.vision_client import VisionClient
 from app.speech.whisper_service import transcribe_audio
 from app.speech.edge_tts_service import text_to_speech
 
+# ============================
+# INIT
+# ============================
+BASE_DIR = Path(__file__).resolve().parent
+load_dotenv(BASE_DIR.parent / ".env")
 
 app = FastAPI()
 
-BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
 TEMP_DIR = BASE_DIR / "temp"
 
 STATIC_DIR.mkdir(exist_ok=True)
 TEMP_DIR.mkdir(exist_ok=True)
-(STATIC_DIR / "audio").mkdir(exist_ok=True)  # ensure audio folder exists
+(STATIC_DIR / "audio").mkdir(exist_ok=True)
 
-app.mount(
-    "/static",
-    StaticFiles(directory=STATIC_DIR),
-    name="static"
-)
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 app.add_middleware(
     CORSMiddleware,
@@ -37,57 +43,64 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Load LLM ONCE
-llm = get_llm("ollama")
+llm = get_llm()
+vision_client = VisionClient()
 
+latest_vision_description = None
 
 class ChatRequest(BaseModel):
     prompt: str
 
+# ============================
+# IMAGE PREPROCESSING (🔥 SPEED BOOST)
+# ============================
+def preprocess_image(image_bytes):
+    nparr = np.frombuffer(image_bytes, np.uint8)
+    frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
+    # 🔥 resize (BIGGEST BOOST)
+    frame = cv2.resize(frame, (320, 240))
+
+    # 🔥 compress
+    _, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 50])
+
+    return buffer.tobytes()
+
+# ============================
+# HEALTH
+# ============================
 @app.get("/")
 def health():
     return {"status": "ok"}
 
-
-# ==============================
-# SPEECH TO TEXT
-# ==============================
-
-@app.post("/speech-to-text")
-async def speech_to_text(file: UploadFile = File(...)):
-    temp_audio = TEMP_DIR / f"{uuid.uuid4()}.webm"
-
-    try:
-        with open(temp_audio, "wb") as f:
-            f.write(await file.read())
-
-        transcript = transcribe_audio(str(temp_audio))
-
-        return {"text": transcript}
-
-    finally:
-        if temp_audio.exists():
-            temp_audio.unlink()
-
-
-# ==============================
-# CHAT
-# ==============================
-
+# ============================
+# TEXT CHAT
+# ============================
 @app.post("/chat")
 async def chat(req: ChatRequest):
-    answer = llm.generate(req.prompt)
-    return {"answer": answer}
+    try:
+        answer = llm.generate(req.prompt)
+        audio_url = await text_to_speech(answer)
 
+        return {
+            "answer": answer,
+            "audio": audio_url
+        }
 
-# ==============================
+    except Exception as e:
+        return {
+            "answer": str(e),
+            "audio": None
+        }
+
+# ============================
 # VOICE CHAT
-# ==============================
-
+# ============================
 @app.post("/voice-chat")
 async def voice_chat(file: UploadFile = File(...)):
-    temp_audio = TEMP_DIR / f"{uuid.uuid4()}.webm"
+    global latest_vision_description
+
+    temp_audio = TEMP_DIR / f"{uuid.uuid4()}.wav"
 
     try:
         with open(temp_audio, "wb") as f:
@@ -96,22 +109,41 @@ async def voice_chat(file: UploadFile = File(...)):
         transcript = transcribe_audio(str(temp_audio))
         transcript = (transcript or "").strip()
 
-        print("TRANSCRIPT:", transcript)
+        print("🎤 TRANSCRIPT:", transcript)
 
-        if len(transcript) < 3:
-            fallback_text = "Sorry, I didn’t catch that. Could you please repeat?"
-
-            audio_url = await text_to_speech(fallback_text)
+        if len(transcript) < 2:
+            fallback = "Sorry, I didn’t catch that. Please repeat."
+            audio_url = await text_to_speech(fallback)
 
             return {
                 "transcript": transcript,
-                "answer": fallback_text,
-                "audio": audio_url   # ✅ fixed key
+                "answer": fallback,
+                "audio": audio_url
             }
 
-        answer = llm.generate(transcript)
-        print("ANSWER:", answer)
+        if latest_vision_description:
+            prompt = f"""
+You are Sia.
 
+User said:
+{transcript}
+
+Camera sees:
+{latest_vision_description}
+
+Reply briefly in 1-2 sentences. Do not guess.
+"""
+        else:
+            prompt = f"""
+You are Sia.
+
+User said:
+{transcript}
+
+Reply briefly in 1-2 sentences.
+"""
+
+        answer = llm.generate(prompt)
         audio_url = await text_to_speech(answer)
 
         return {
@@ -120,61 +152,58 @@ async def voice_chat(file: UploadFile = File(...)):
             "audio": audio_url
         }
 
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+
+        return {
+            "transcript": "",
+            "answer": str(e),
+            "audio": None
+        }
+
     finally:
         if temp_audio.exists():
             temp_audio.unlink()
 
-
-# ==============================
-# 🔥 VISION (NEW FEATURE)
-# ==============================
-
-def describe_image(image_path):
-    """
-    Uses LLaVA (Ollama) to describe the image
-    """
-    with open(image_path, "rb") as f:
-        image_bytes = f.read()
-
-    image_base64 = base64.b64encode(image_bytes).decode("utf-8")
-
-    response = requests.post(
-        "http://localhost:11434/api/generate",
-        json={
-            "model": "llava",
-            "prompt": "Describe this image clearly.",
-            "images": [image_base64],
-            "stream": False
-        }
-    )
-
-    data = response.json()
-    return data.get("response", "").strip()
-
-
-@app.post("/vision-chat")
-async def vision_chat(file: UploadFile = File(...)):
-    temp_image = TEMP_DIR / f"{uuid.uuid4()}.jpg"
+# ============================
+# VISION ANALYSIS (🔥 FIXED)
+# ============================
+@app.post("/analyze")
+async def analyze(file: UploadFile = File(...)):
+    global latest_vision_description
 
     try:
-        # Save uploaded image
-        with open(temp_image, "wb") as f:
-            f.write(await file.read())
+        raw_bytes = await file.read()
 
-        print("🖼 Image received")
+        # 🔥 FAST preprocessing
+        image_bytes = preprocess_image(raw_bytes)
 
-        # Step 1: Describe image
-        description = describe_image(str(temp_image))
-        print("IMAGE DESCRIPTION:", description)
+        # 🔥 Groq Vision
+        description = vision_client.describe(image_bytes)
 
-        # Step 2: Ask LLM to explain
-        answer = llm.generate(
-            f"The user is showing an image. Description: {description}. Explain it simply."
-        )
+        print("👁️ VISION:", description)
 
-        print("VISION ANSWER:", answer)
+        if not description:
+            return {
+                "description": "Vision failed",
+                "answer": "Could not analyze image",
+                "audio": None
+            }
 
-        # Step 3: Convert to speech
+        latest_vision_description = description
+
+        # 🔥 SHORT + ACCURATE PROMPT
+        prompt = f"""
+You are Sia.
+
+Camera sees:
+{description}
+
+Explain briefly in 1-2 sentences. Do not guess.
+"""
+
+        answer = llm.generate(prompt)
         audio_url = await text_to_speech(answer)
 
         return {
@@ -183,6 +212,12 @@ async def vision_chat(file: UploadFile = File(...)):
             "audio": audio_url
         }
 
-    finally:
-        if temp_image.exists():
-            temp_image.unlink()
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+
+        return {
+            "description": "Error",
+            "answer": str(e),
+            "audio": None
+        }

@@ -1,15 +1,11 @@
 def __init__(self):
 
-    # Ollama endpoint
     self.url = "http://localhost:11434/api/generate"
 
-    # Model name
     self.model = "phi3:mini"
 
-    # Persistent connection (faster)
     self.session = requests.Session()
 
-    # System prompt
     self.system_prompt = """
 You are Sia, a friendly real-time voice assistant talking to a user.
 
