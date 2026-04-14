@@ -9,7 +9,7 @@ class VisionClient:
 
     def describe(self, image_bytes: bytes):
         try:
-            # 🔥 Encode image (now expected to be SMALL & compressed)
+           
             base64_image = base64.b64encode(image_bytes).decode("utf-8")
 
             response = self.client.chat.completions.create(
@@ -34,20 +34,20 @@ class VisionClient:
                             {
                                 "type": "image_url",
                                 "image_url": {
-                                    # 🔥 Use JPEG (faster + smaller)
+                                    
                                     "url": f"data:image/jpeg;base64,{base64_image}"
                                 }
                             }
                         ]
                     }
                 ],
-                max_tokens=60,   # 🔥 keeps response fast + short
-                temperature=0.2  # 🔥 reduces hallucination
+                max_tokens=60,   
+                temperature=0.2  
             )
 
             answer = response.choices[0].message.content
 
-            # 🔥 Safety: keep only first 2 sentences
+            
             if answer:
                 sentences = answer.split('. ')
                 answer = '. '.join(sentences[:2]).strip()

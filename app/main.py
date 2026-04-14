@@ -18,9 +18,7 @@ from app.llm.vision_client import VisionClient
 from app.speech.whisper_service import transcribe_audio
 from app.speech.edge_tts_service import text_to_speech
 
-# ============================
-# INIT
-# ============================
+
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR.parent / ".env")
 
@@ -51,9 +49,7 @@ latest_vision_description = None
 class ChatRequest(BaseModel):
     prompt: str
 
-# ============================
-# IMAGE PREPROCESSING (🔥 SPEED BOOST)
-# ============================
+
 def preprocess_image(image_bytes):
     nparr = np.frombuffer(image_bytes, np.uint8)
     frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
@@ -66,16 +62,12 @@ def preprocess_image(image_bytes):
 
     return buffer.tobytes()
 
-# ============================
-# HEALTH
-# ============================
+
 @app.get("/")
 def health():
     return {"status": "ok"}
 
-# ============================
-# TEXT CHAT
-# ============================
+
 @app.post("/chat")
 async def chat(req: ChatRequest):
     try:
@@ -93,9 +85,6 @@ async def chat(req: ChatRequest):
             "audio": None
         }
 
-# ============================
-# VOICE CHAT
-# ============================
 @app.post("/voice-chat")
 async def voice_chat(file: UploadFile = File(...)):
     global latest_vision_description
@@ -166,9 +155,6 @@ Reply briefly in 1-2 sentences.
         if temp_audio.exists():
             temp_audio.unlink()
 
-# ============================
-# VISION ANALYSIS (🔥 FIXED)
-# ============================
 @app.post("/analyze")
 async def analyze(file: UploadFile = File(...)):
     global latest_vision_description
@@ -176,10 +162,10 @@ async def analyze(file: UploadFile = File(...)):
     try:
         raw_bytes = await file.read()
 
-        # 🔥 FAST preprocessing
+        
         image_bytes = preprocess_image(raw_bytes)
 
-        # 🔥 Groq Vision
+        
         description = vision_client.describe(image_bytes)
 
         print("👁️ VISION:", description)
@@ -193,7 +179,7 @@ async def analyze(file: UploadFile = File(...)):
 
         latest_vision_description = description
 
-        # 🔥 SHORT + ACCURATE PROMPT
+        
         prompt = f"""
 You are Sia.
 

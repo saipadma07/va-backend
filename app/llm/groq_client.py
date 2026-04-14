@@ -35,13 +35,13 @@ class GroqClient:
                         "content": prompt
                     }
                 ],
-                temperature=0.2,   # 🔥 less hallucination
-                max_tokens=80      # 🔥 shorter + faster
+                temperature=0.2,   
+                max_tokens=80      
             )
 
             result = response.choices[0].message.content.strip()
 
-            # 🔥 Extra safety: trim to 2 sentences
+            
             if result:
                 sentences = result.split('. ')
                 result = '. '.join(sentences[:2]).strip()
