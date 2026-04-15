@@ -4,15 +4,6 @@ python-multipart
 requests
 pydantic
 python-dotenv
-
-# AI / LLM
 groq
-
-# Vision
 opencv-python
-Pillow
-
-# Speech
 edge-tts
-openai-whisper
-torch
