@@ -1,0 +1,27 @@
+{
+	"Version": 3,
+	"FileReferences": {
+		"Moc": "laolao GG.moc3",
+		"Textures": [
+			"laolao GG.2048/texture_00.png",
+			"laolao GG.2048/texture_01.png"
+		],
+		"Physics": "laolao GG.physics3.json",
+		"DisplayInfo": "laolao GG.cdi3.json"
+	},
+	"Groups": [
+		{
+			"Target": "Parameter",
+			"Name": "LipSync",
+			"Ids": []
+		},
+		{
+			"Target": "Parameter",
+			"Name": "EyeBlink",
+			"Ids": [
+				"ParamEyeLOpen",
+				"ParamEyeROpen"
+			]
+		}
+	]
+}
