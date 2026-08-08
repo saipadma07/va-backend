@@ -104,27 +104,3 @@ Technologies
 Python • FastAPI • LLMs • Computer Vision • OCR • Docker • Unity • C# • Live2D Cubism
 
 
-### BUT before you click Commit...
-
-There's one thing I want to be careful about.
-
-I included **OCR, voice, Groq, etc.** because you've already told me those are part of your SIA project. But if any of those aren't actually represented in this repository or weren't part of the final SIA implementation, **we should remove them rather than overstate the project**.
-
-Also, don't put any API keys or credentials in the README.
-
----
-
-## Step 2 — Commit it
-
-At the bottom of the GitHub editor:
-
-**Commit changes**
-
-Use:
-
-**Commit message:**
-
-```text
-Add project documentation
-
-Then commit directly to main.
